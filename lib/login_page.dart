@@ -1,94 +1,105 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:locamovies/main.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:locamovies/home.dart'; // ou o arquivo correto para a home
 
 class LoginPage extends StatefulWidget {
   @override
-  LoginPageState createState() {
-    // TODO: implement createState
-    return LoginPageState();
-  }
+  _LoginPageState createState() => _LoginPageState();
 }
 
-class LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> {
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  bool _isLoading = false;
+
+  Future<User?> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return null; // O usuário cancelou o login
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      setState(() {
+        _isLoading = false;
+      });
+      return user;
+    } catch (error) {
+      setState(() {
+        _isLoading = false;
+      });
+      print("Erro ao fazer login com o Google: $error");
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.brown[700],
-          titleTextStyle: TextStyle(color: Colors.grey[300], fontSize: 28),
-          title: Text(
-            'LocaMovies',
-            textAlign: TextAlign.center,
-          ),
-          centerTitle: true,
-        ),
-        drawer: Drawer(
-          backgroundColor: Colors.grey[300],
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: <Widget>[
-              DrawerHeader(
-                  decoration: BoxDecoration(color: Colors.brown[700]),
-                  child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'LocaMovies',
-                          style: TextStyle(color: Colors.white, fontSize: 24),
-                        ),
-                        Text(
-                          'Bem vindo!',
-                          style: TextStyle(color: Colors.white),
-                        )
-                      ])),
-              ListTile(
-                leading: Icon(Icons.home),
-                title: Text('Início'),
+      appBar: AppBar(
+        title: Text("Login"),
+        backgroundColor: Color(0xFF1B50A1), // Azul
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Bem-vindo ao LocaMovies!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              ListTile(
-                leading: Icon(Icons.search),
-                title: Text('Procurar filmes'),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        final user = await _signInWithGoogle();
+                        if (user != null) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => HomePage()),
+                          );
+                        } else {
+                          // Exibir um erro ou mensagem caso o login não tenha ocorrido
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Erro ao fazer login')));
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF1B50A1), // Azul
+                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                ),
+                child: _isLoading
+                    ? CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        'Entrar com Google',
+                        style: TextStyle(color: Colors.white),
+                      ),
               ),
-              const Divider(),
-              ListTile(
-                leading: Icon(Icons.movie),
-                title: Text('Meus filmes'),
-              ),
-              ListTile(
-                leading: Icon(Icons.movie_edit),
-                title: Text('Gerenciar filmes'),
-              ),
-              ListTile(
-                leading: Icon(Icons.settings),
-                title: Text('Configurações'),
-              ),
-              ListTile(
-                leading: Icon(Icons.logout),
-                title: Text('Sair'),
-              )
             ],
           ),
         ),
-        body: Container(
-          child: Center(
-            child: Container(
-                width: 400,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.all(20),
-                    ),
-                    Text(
-                      "Olá, Jhonathan",
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
-                      textAlign: TextAlign.left,
-                      
-                    )
-                  ],
-                )),
-          ),
-        ));
+      ),
+    );
   }
 }
